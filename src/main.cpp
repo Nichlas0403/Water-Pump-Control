@@ -3,6 +3,7 @@
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
 #include "GPIOService.h"
+#include "FlashService.h"
 
 #define relayGPIO D7
 
@@ -13,24 +14,42 @@ String _wifiPassword = "";
 //Services
 ESP8266WebServer _server(80);
 GPIOService _gpioService(relayGPIO);
+FlashService _flashService;
+
+//FlashService Keys
+String _wifiNameFlash = "wifiNameFlash";
+String _wifiPasswordFlash = "wifiPassword";
 
 
-// put function declarations here:
-int myFunction(int, int);
+//Function Definitions
 
-void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+void connectToWiFi();
+
+void setup() 
+{
+  Serial.begin(9600);
+
+  _gpioService.TurnRelayOff();
+
+  _wifiName = _flashService.ReadFromFlash(_wifiNameFlash);
+  _wifiPassword = _flashService.ReadFromFlash(_wifiPasswordFlash);
+
+  connectToWiFi();
+  
+
+  //Connect to wifi
+
+  //check if schedule needs to run 
+  
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop() 
+{
+  _server.handleClient();
+  delay(1);
 }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
-}
+
 
 
 
@@ -78,6 +97,11 @@ void GetTimeSchedule()
   
 }
 
+void GetTimeRemaining()
+{
+  
+}
+
 void TurnWaterPumpOn()
 {
   _gpioService.TurnRelayOn();
@@ -89,7 +113,33 @@ void TurnWaterPumpOff()
 {
   _gpioService.TurnRelayOff();
 
+  //if time is set - end timer
+
   _server.send(200);
+}
+
+void SetTimer()
+{
+  // expected format: HH:MM
+
+  //minimum 1 min
+
+  //max 24 H¨
+
+  // ----
+
+  //Validate HH:MM format
+  //validate minimum and maximum time
+  //convert timer to milliseconds
+    //if milliseconds + millis > millis.MAX
+      //HANDLE?
+    //else
+      //set timer
+
+
+
+  //check if microcontroller millis() is out of time compared to desired timer --> if so
+
 }
 
 void UpdateTimeSchedule()
@@ -101,10 +151,13 @@ void UpdateTimeSchedule()
 void restServerRouting() 
 {
   _server.on(F("/health-check"), HTTP_GET, HealthCheck);
-  _server.on(F("water-pump/state"), HTTP_GET, GetState);
+  _server.on(F("/water-pump/state"), HTTP_GET, GetState);
   _server.on(F("/water-pump/on"), HTTP_PUT, TurnWaterPumpOn);
   _server.on(F("/water-pump/off"), HTTP_PUT, TurnWaterPumpOff);
 
+
+  _server.on(F("/timer"), HTTP_PUT, SetTimer);
+  _server.on(F("/timer"), HTTP_GET, GetTimeRemaining);
 
   _server.on(F("/time-schedule"), HTTP_GET, GetTimeSchedule);
   _server.on(F("/time-schedule"), HTTP_PUT, UpdateTimeSchedule);

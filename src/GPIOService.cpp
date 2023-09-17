@@ -9,12 +9,12 @@ GPIOService::GPIOService(int relayGPIO)
 
 void GPIOService::TurnRelayOn()
 {
-    digitalWrite(_relayGPIO, HIGH);
+    digitalWrite(_relayGPIO, LOW);
     RelayState = true;
 }
 
 void GPIOService::TurnRelayOff()
 {
-    digitalWrite(_relayGPIO, LOW);
+    digitalWrite(_relayGPIO, HIGH);
     RelayState = false;
 }
