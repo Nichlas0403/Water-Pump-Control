@@ -11,17 +11,17 @@ TimerService::TimerService() : _mathService()
 
 }
 
-String TimerService::SetTimer(int hours, int minutes)
+int TimerService::SetTimer(int hours, int minutes)
 {
     if(!ValidateTimeFormat(hours, minutes))
-        return "error";
+        return 0;
 
     int hoursAsMillis = _mathService.ConvertHoursToMillis(hours);
     int minutesAsMillis = _mathService.ConvertMinutesToMillis(minutes);
 
     int timerMillis = hoursAsMillis + minutesAsMillis;
 
-    return String(timerMillis);
+    return timerMillis;
 }
 
 bool TimerService::ValidateTimeFormat(int hours, int minutes)

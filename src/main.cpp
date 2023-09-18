@@ -6,18 +6,21 @@
 #include "TimerService.h"
 #include "GPIOService.h"
 #include "FlashService.h"
+#include "MathService.h"
 
 #define relayGPIO D7
 
 //Core variables
 String _wifiName = "";
 String _wifiPassword = "";
+unsigned long _timer;
 
 //Services
 ESP8266WebServer _server(80);
 GPIOService _gpioService(relayGPIO);
 FlashService _flashService;
 TimerService _timerService;
+MathService _mathService;
 
 //FlashService Keys
 String _wifiNameFlash = "wifiNameFlash";
@@ -45,8 +48,18 @@ void setup()
 
 void loop() 
 {
+
+  unsigned long currentTime = millis();
+
   _server.handleClient();
   delay(1);
+
+  if(_timer != 0 && currentTime > _timer)
+  {
+    _gpioService.TurnRelayOff();
+    _timer = 0;
+  }
+
 }
 
 
@@ -94,12 +107,21 @@ void GetState()
 
 void GetTimeSchedule()
 {
-  
+
+
 }
 
 void GetTimeRemaining()
 {
+  unsigned long timeRemaining = _timer - millis();
+
+  int hours = _mathService.ConvertMillisToHours(timeRemaining); //Casting it as int will round down the number
   
+  unsigned long timerWithoutHours = timeRemaining - hours;
+
+  int minutes = _mathService.ConvertMillisToMinutes(timerWithoutHours);
+
+  _server.send(200, "text/json", "Time remaining: " + String(hours) + ":" + String(minutes));
 }
 
 void TurnWaterPumpOn()
@@ -114,7 +136,10 @@ void TurnWaterPumpOff()
 {
   _gpioService.TurnRelayOff();
 
-  //if time is set - end timer
+  if(_timer != 0)
+  {
+    _timer = 0;
+  }
 
   _server.send(200);
 }
@@ -129,30 +154,20 @@ void SetTimer()
   int minutes = request["minutes"];
   int hours = request["hours"];
   
-  String timer = _timerService.SetTimer(hours, minutes);
+  int timer = _timerService.SetTimer(hours, minutes);
 
-  Serial.println(timer);
+  if(timer == 0)
+  {
+    _server.send(400, "text/json", "Invalid time - minutes must be between 0-59 and hours must be between 0-24");
+    return;
+  }
+
+
+  _timer += millis();
+
+  _gpioService.TurnRelayOn();
 
   _server.send(200);
-
-  //minimum 1 min (00:01) check
-
-  //max 24 H (24:00) check
-
-  // ----
-
-  //validate minimum and maximum time check
-  //convert timer to milliseconds and set
-
-  //timerservice
-    //calculate timer (using mathservice??) check
-    //use GPIOService to turn on
-    //return end timer value
-    //set value in global variables
-    //when millis =< timerValue 
-      //reset timer
-      //turn pump off
-
 }
 
 void UpdateTimeSchedule()

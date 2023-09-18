@@ -17,7 +17,7 @@ class TimerService
 
     public:
         TimerService();
-        String SetTimer(int hours, int minutes);
+        int SetTimer(int hours, int minutes);
 };
 
 #endif
