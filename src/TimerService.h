@@ -1,6 +1,7 @@
 #ifndef TimerService_h
 #define TimerService_h
 #include "Arduino.h"
+#include "Time.h"
 #include "MathService.h"
 
 class TimerService
@@ -18,6 +19,8 @@ class TimerService
     public:
         TimerService();
         int SetTimer(int hours, int minutes);
+        Time CalculateTimeRemaining(unsigned long timer);
+        
 };
 
 #endif

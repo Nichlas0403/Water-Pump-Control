@@ -4,6 +4,7 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoJson.h>
 #include "TimerService.h"
+#include "Time.h"
 #include "GPIOService.h"
 #include "FlashService.h"
 #include "MathService.h"
@@ -113,15 +114,30 @@ void GetTimeSchedule()
 
 void GetTimeRemaining()
 {
-  unsigned long timeRemaining = _timer - millis();
 
-  int hours = _mathService.ConvertMillisToHours(timeRemaining); //Casting it as int will round down the number
+  if(_timer == 0)
+  {
+    _server.send(200, "text/json", "TimeRemaining: 00:00");
+  }
+
+  Time timeRemaining = _timerService.CalculateTimeRemaining(_timer);
+
+  String hoursFormatted;
   
-  unsigned long timerWithoutHours = timeRemaining - hours;
+  if(timeRemaining.Hours < 10)
+    hoursFormatted = "0" + String(timeRemaining.Hours);
+  else
+    hoursFormatted = String(timeRemaining.Hours);
 
-  int minutes = _mathService.ConvertMillisToMinutes(timerWithoutHours);
+  String minutesFormatted;
 
-  _server.send(200, "text/json", "Time remaining: " + String(hours) + ":" + String(minutes));
+  if(timeRemaining.Minutes < 10)
+    minutesFormatted = "0" + String(timeRemaining.Minutes);
+  else
+    minutesFormatted = String(timeRemaining.Minutes);
+  
+  _server.send(200, "text/json", "TimeRemaining: " + hoursFormatted + ":" + minutesFormatted);
+
 }
 
 void TurnWaterPumpOn()
@@ -146,6 +162,8 @@ void TurnWaterPumpOff()
 
 void SetTimer()
 {
+  //Expected body:
+  //{ "minutes" : 34, "hours" : 22}
   
   DynamicJsonDocument request(1024);
   
@@ -154,9 +172,9 @@ void SetTimer()
   int minutes = request["minutes"];
   int hours = request["hours"];
   
-  int timer = _timerService.SetTimer(hours, minutes);
+  _timer = _timerService.SetTimer(hours, minutes);
 
-  if(timer == 0)
+  if(_timer == 0)
   {
     _server.send(400, "text/json", "Invalid time - minutes must be between 0-59 and hours must be between 0-24");
     return;
@@ -165,6 +183,8 @@ void SetTimer()
 
   _timer += millis();
 
+
+
   _gpioService.TurnRelayOn();
 
   _server.send(200);
@@ -172,7 +192,11 @@ void SetTimer()
 
 void UpdateTimeSchedule()
 {
-  
+  //Expected body:
+  //{ "hoursStart" : 4, "minutesStart" : 22, "hoursEnd" : 17, "minutesEnd" : 45 }
+
+
+
 }
 
 // Core server functionality

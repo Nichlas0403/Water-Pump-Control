@@ -34,3 +34,25 @@ bool TimerService::ValidateTimeFormat(int hours, int minutes)
 
     return true;
 }
+
+Time TimerService::CalculateTimeRemaining(unsigned long timer)
+{
+  unsigned long timeRemaining = timer - millis();
+
+  int hours = _mathService.ConvertMillisToHours(timeRemaining); //Casting it as int will round down the number
+  
+  unsigned long timerWithoutHours = timeRemaining - hours;
+
+  hours %= 24;
+
+  int minutes = _mathService.ConvertMillisToMinutes(timerWithoutHours);
+
+  minutes %= 60;
+
+  Time time;
+
+  time.Hours = hours;
+  time.Minutes = minutes;
+
+  return time;
+}
