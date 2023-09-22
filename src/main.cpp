@@ -4,7 +4,7 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoJson.h>
 #include "TimerService.h"
-#include "Time.h"
+#include "DateTime.h"
 #include "GPIOService.h"
 #include "FlashService.h"
 #include "MathService.h"
@@ -26,7 +26,9 @@ MathService _mathService;
 //FlashService Keys
 String _wifiNameFlash = "wifiNameFlash";
 String _wifiPasswordFlash = "wifiPassword";
-
+String _cscsBaseUrl = "cscsBaseUrl";
+String _getDateTimeRoute = "getDateTimeUrl";
+String _sendTextRoute = "sendTextRoute";
 
 //Function Definitions
 
@@ -120,7 +122,7 @@ void GetTimeRemaining()
     _server.send(200, "text/json", "TimeRemaining: 00:00");
   }
 
-  Time timeRemaining = _timerService.CalculateTimeRemaining(_timer);
+  DateTime timeRemaining = _timerService.CalculateTimeRemaining(_timer);
 
   String hoursFormatted;
   
@@ -162,9 +164,6 @@ void TurnWaterPumpOff()
 
 void SetTimer()
 {
-  //Expected body:
-  //{ "minutes" : 34, "hours" : 22}
-  
   DynamicJsonDocument request(1024);
   
   deserializeJson(request, _server.arg("plain"));
@@ -195,7 +194,7 @@ void UpdateTimeSchedule()
   //Expected body:
   //{ "hoursStart" : 4, "minutesStart" : 22, "hoursEnd" : 17, "minutesEnd" : 45 }
 
-
+  _server.send(200);
 
 }
 

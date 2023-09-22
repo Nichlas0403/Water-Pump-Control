@@ -35,7 +35,7 @@ bool TimerService::ValidateTimeFormat(int hours, int minutes)
     return true;
 }
 
-Time TimerService::CalculateTimeRemaining(unsigned long timer)
+DateTime TimerService::CalculateTimeRemaining(unsigned long timer)
 {
   unsigned long timeRemaining = timer - millis();
 
@@ -49,7 +49,7 @@ Time TimerService::CalculateTimeRemaining(unsigned long timer)
 
   minutes %= 60;
 
-  Time time;
+  DateTime time;
 
   time.Hours = hours;
   time.Minutes = minutes;
