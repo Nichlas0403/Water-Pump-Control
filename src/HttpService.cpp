@@ -8,7 +8,7 @@ HttpService::HttpService(String cscsBaseUrl, String getDateTimeRoute, String sen
 }
 
 
-DateTime HttpService::GetDateTime()
+DateTimeModel HttpService::GetDateTime()
 {
     String route = _cscsBaseUrl + _getDateTimeRoute;
 
@@ -16,7 +16,9 @@ DateTime HttpService::GetDateTime()
 
     int httpResponseCode = _client.GET();
 
-    DateTime dateTime;
+    Serial.println(httpResponseCode);
+
+    DateTimeModel dateTime;
 
     if(httpResponseCode > 0)
     {
@@ -28,15 +30,15 @@ DateTime HttpService::GetDateTime()
         dateTime.Hours = response.substring(12,14).toInt();
         dateTime.Minutes = response.substring(15,17).toInt();
         dateTime.Seconds = response.substring(18,20).toInt();
-
-        return dateTime;
-
     }
     else
     {
         SendErrorMessageAsText();
-        return dateTime;
     }
+    
+    _client.end();
+    
+    return dateTime;
 
 }
 

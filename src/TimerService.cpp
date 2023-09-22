@@ -1,6 +1,4 @@
 #include "TimerService.h"
-#include "Arduino.h"
-
 
 TimerService::TimerService() : _mathService()
 {
@@ -35,7 +33,7 @@ bool TimerService::ValidateTimeFormat(int hours, int minutes)
     return true;
 }
 
-DateTime TimerService::CalculateTimeRemaining(unsigned long timer)
+DateTimeModel TimerService::CalculateTimeRemaining(unsigned long timer)
 {
   unsigned long timeRemaining = timer - millis();
 
@@ -49,7 +47,7 @@ DateTime TimerService::CalculateTimeRemaining(unsigned long timer)
 
   minutes %= 60;
 
-  DateTime time;
+  DateTimeModel time;
 
   time.Hours = hours;
   time.Minutes = minutes;

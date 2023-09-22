@@ -1,5 +1,4 @@
 #include "UrlEncoderDecoderService.h"
-#include "Arduino.h"
 
 unsigned char UrlEncoderDecoderService::h2int(char c)
 {

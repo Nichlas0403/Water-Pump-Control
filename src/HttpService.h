@@ -3,7 +3,7 @@
 #include "Arduino.h"
 #include "ArduinoJson.h"
 #include <ESP8266HttpClient.h>
-#include "DateTime.h"
+#include "DateTimeModel.h"
 #include "UrlEncoderDecoderService.h"
 
 class HttpService
@@ -21,7 +21,7 @@ class HttpService
 
     public:
         HttpService(String cscsBaseUrl, String getDateTimeRoute, String sendTextUrl);
-        DateTime GetDateTime();
+        DateTimeModel GetDateTime();
         
 };
 

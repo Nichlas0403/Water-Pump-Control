@@ -4,10 +4,13 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoJson.h>
 #include "TimerService.h"
-#include "DateTime.h"
 #include "GPIOService.h"
+#include "HttpService.h"
 #include "FlashService.h"
 #include "MathService.h"
+#include "TimeScheduleService.h"
+#include "DateTimeModel.h"
+#include "TimeScheduleModel.h"
 
 #define relayGPIO D7
 
@@ -16,19 +19,22 @@ String _wifiName = "";
 String _wifiPassword = "";
 unsigned long _timer;
 
-//Services
-ESP8266WebServer _server(80);
-GPIOService _gpioService(relayGPIO);
-FlashService _flashService;
-TimerService _timerService;
-MathService _mathService;
-
 //FlashService Keys
 String _wifiNameFlash = "wifiNameFlash";
 String _wifiPasswordFlash = "wifiPassword";
 String _cscsBaseUrl = "cscsBaseUrl";
 String _getDateTimeRoute = "getDateTimeUrl";
 String _sendTextRoute = "sendTextRoute";
+
+//Services
+ESP8266WebServer _server(80);
+GPIOService _gpioService(relayGPIO);
+FlashService _flashService;
+TimerService _timerService;
+MathService _mathService;
+HttpService _httpService(_flashService.ReadFromFlash(_cscsBaseUrl), _flashService.ReadFromFlash(_getDateTimeRoute), _flashService.ReadFromFlash(_sendTextRoute));
+TimeScheduleService _timeScheduleService(&_httpService);
+
 
 //Function Definitions
 
@@ -122,7 +128,7 @@ void GetTimeRemaining()
     _server.send(200, "text/json", "TimeRemaining: 00:00");
   }
 
-  DateTime timeRemaining = _timerService.CalculateTimeRemaining(_timer);
+  DateTimeModel timeRemaining = _timerService.CalculateTimeRemaining(_timer);
 
   String hoursFormatted;
   
@@ -179,10 +185,7 @@ void SetTimer()
     return;
   }
 
-
   _timer += millis();
-
-
 
   _gpioService.TurnRelayOn();
 
@@ -191,8 +194,26 @@ void SetTimer()
 
 void UpdateTimeSchedule()
 {
-  //Expected body:
-  //{ "hoursStart" : 4, "minutesStart" : 22, "hoursEnd" : 17, "minutesEnd" : 45 }
+  DynamicJsonDocument request(1024);
+  
+  deserializeJson(request, _server.arg("plain"));
+
+  TimeScheduleModel timeSchedule;
+
+  timeSchedule.StartTime.Hours = request["hoursStart"];
+  timeSchedule.StartTime.Minutes = request["minutesStart"];
+  timeSchedule.EndTime.Hours = request["hoursEnd"];
+  timeSchedule.EndTime.Minutes = request["minutesEnd"];
+
+  bool timerScheduleIsValid = _timeScheduleService.ValidateTimer(timeSchedule);
+
+  if(!timerScheduleIsValid)
+  {
+    _server.send(400, "text/json", "Invalid time - Hours must be between 0 and 23, minutes must be between 0 and 59, and start and end time can not have the same value.");
+    return;
+  }
+  
+  _timeScheduleService.SetTimeSchedule(timeSchedule);
 
   _server.send(200);
 

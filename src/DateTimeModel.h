@@ -1,8 +1,8 @@
-#ifndef DateTime_h
-#define DateTime_h
+#ifndef DateTimeModel_h
+#define DateTimeModel_h
 #include "Arduino.h"
 
-class DateTime
+class DateTimeModel
 {
     public:
         int Seconds;
