@@ -22,9 +22,11 @@ unsigned long _timer;
 //FlashService Keys
 String _wifiNameFlash = "wifiNameFlash";
 String _wifiPasswordFlash = "wifiPassword";
-String _cscsBaseUrl = "cscsBaseUrl";
-String _getDateTimeRoute = "getDateTimeUrl";
-String _sendTextRoute = "sendTextRoute";
+String _cscsBaseUrlFlash = "cscsBaseUrl";
+String _getDateTimeRouteFlash = "getDateTimeUrl";
+String _sendTextRouteFlash = "sendTextRoute";
+String _timeScheduleStartFlash = "timeScheduleStart";
+String _timeScheduleEndFlash = "timeScheduleEnd";
 
 //Services
 ESP8266WebServer _server(80);
@@ -32,8 +34,8 @@ GPIOService _gpioService(relayGPIO);
 FlashService _flashService;
 TimerService _timerService;
 MathService _mathService;
-HttpService _httpService(_flashService.ReadFromFlash(_cscsBaseUrl), _flashService.ReadFromFlash(_getDateTimeRoute), _flashService.ReadFromFlash(_sendTextRoute));
-TimeScheduleService _timeScheduleService(&_httpService);
+HttpService _httpService(_flashService.ReadFromFlash(_cscsBaseUrlFlash), _flashService.ReadFromFlash(_getDateTimeRouteFlash), _flashService.ReadFromFlash(_sendTextRouteFlash));
+TimeScheduleService _timeScheduleService(_timeScheduleStartFlash, _timeScheduleEndFlash, &_httpService);
 
 
 //Function Definitions
