@@ -16,8 +16,6 @@ DateTimeModel HttpService::GetDateTime()
 
     int httpResponseCode = _client.GET();
 
-    Serial.println(httpResponseCode);
-
     DateTimeModel dateTime;
 
     if(httpResponseCode > 0)

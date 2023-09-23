@@ -18,6 +18,11 @@
 String _wifiName = "";
 String _wifiPassword = "";
 unsigned long _timer;
+bool _timerOn;
+unsigned long _timeScheduleStart;
+unsigned long _timeScheduleEnd;
+bool _timeScheduleOn;
+TimeScheduleModel _timeSchedule;
 
 //FlashService Keys
 String _wifiNameFlash = "wifiNameFlash";
@@ -25,8 +30,7 @@ String _wifiPasswordFlash = "wifiPassword";
 String _cscsBaseUrlFlash = "cscsBaseUrl";
 String _getDateTimeRouteFlash = "getDateTimeUrl";
 String _sendTextRouteFlash = "sendTextRoute";
-String _timeScheduleStartFlash = "timeScheduleStart";
-String _timeScheduleEndFlash = "timeScheduleEnd";
+String _timeScheduleFlash = "timeSchedule";
 
 //Services
 ESP8266WebServer _server(80);
@@ -35,26 +39,31 @@ FlashService _flashService;
 TimerService _timerService;
 MathService _mathService;
 HttpService _httpService(_flashService.ReadFromFlash(_cscsBaseUrlFlash), _flashService.ReadFromFlash(_getDateTimeRouteFlash), _flashService.ReadFromFlash(_sendTextRouteFlash));
-TimeScheduleService _timeScheduleService(_timeScheduleStartFlash, _timeScheduleEndFlash, &_httpService);
+TimeScheduleService _timeScheduleService; 
 
 
 //Function Definitions
-
 void connectToWiFi();
+void UpdateTimeScheduleStartAndEnd();
+void GetTimeScheduleFromFlash();
 
 void setup() 
 {
   Serial.begin(9600);
   _gpioService.TurnRelayOff();
 
+  String timeSchedule = _flashService.ReadFromFlash(_timeScheduleFlash);
+
+  if(timeSchedule != "")
+  {
+    GetTimeScheduleFromFlash();
+    _timeScheduleOn = true;
+  }
+
   _wifiName = _flashService.ReadFromFlash(_wifiNameFlash);
   _wifiPassword = _flashService.ReadFromFlash(_wifiPasswordFlash);
 
   connectToWiFi();
-  
-
-  //check if schedule needs to run 
-  
 }
 
 void loop() 
@@ -65,12 +74,43 @@ void loop()
   _server.handleClient();
   delay(1);
 
-  if(_timer != 0 && currentTime > _timer)
+  if(_timerOn && currentTime > _timer)
   {
     _gpioService.TurnRelayOff();
     _timer = 0;
+    _timerOn = false;
   }
 
+  if(_timeScheduleOn && !_gpioService.RelayState && currentTime >= _timeScheduleStart)
+  {
+    _gpioService.TurnRelayOn();
+  }
+  else if(_timeScheduleOn && _gpioService.RelayState && currentTime >= _timeScheduleEnd)
+  {
+    _gpioService.TurnRelayOff();
+
+    UpdateTimeScheduleStartAndEnd();
+  }
+}
+
+void UpdateTimeScheduleStartAndEnd()
+{
+    DateTimeModel currentDateTime = _httpService.GetDateTime();
+
+    _timeScheduleStart = _timeScheduleService.CalculateTimeUntil(_timeSchedule.StartTime, currentDateTime);
+    _timeScheduleEnd = _timeScheduleService.CalculateTimeUntil(_timeSchedule.EndTime, currentDateTime);
+}
+
+void GetTimeScheduleFromFlash()
+{
+    DynamicJsonDocument timeScheduleJson(1024);
+  
+    deserializeJson(timeScheduleJson, _flashService.ReadFromFlash(_timeScheduleFlash));
+
+    _timeSchedule.StartTime.Hours = timeScheduleJson["hoursStart"];
+    _timeSchedule.StartTime.Minutes = timeScheduleJson["minutesStart"];
+    _timeSchedule.EndTime.Hours = timeScheduleJson["hoursEnd"];
+    _timeSchedule.EndTime.Minutes = timeScheduleJson["minutesEnd"];
 }
 
 
@@ -162,9 +202,9 @@ void TurnWaterPumpOff()
 {
   _gpioService.TurnRelayOff();
 
-  if(_timer != 0)
+  if(_timerOn)
   {
-    _timer = 0;
+    _timerOn = false;
   }
 
   _server.send(200);
@@ -188,6 +228,7 @@ void SetTimer()
   }
 
   _timer += millis();
+  _timerOn = true;
 
   _gpioService.TurnRelayOn();
 
@@ -214,9 +255,23 @@ void UpdateTimeSchedule()
     _server.send(400, "text/json", "Invalid time - Hours must be between 0 and 23, minutes must be between 0 and 59, and start and end time can not have the same value.");
     return;
   }
-  
-  _timeScheduleService.SetTimeSchedule(timeSchedule);
 
+  _flashService.WriteToFlash(_timeScheduleFlash, _server.arg("plain"));
+  _timeSchedule = timeSchedule;
+  _timeScheduleOn = true;
+
+  DateTimeModel currentDateTime = _httpService.GetDateTime();
+
+  _timeScheduleStart = _timeScheduleService.CalculateTimeUntil(currentDateTime, timeSchedule.StartTime);
+  _timeScheduleEnd = _timeScheduleService.CalculateTimeUntil(currentDateTime, timeSchedule.EndTime);
+  
+
+  // if(_timerOn)
+  // {
+  //   _timerOn = false;
+  //   _gpioService.TurnRelayOff();
+  // }
+  
   _server.send(200);
 
 }

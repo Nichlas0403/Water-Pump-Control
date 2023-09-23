@@ -14,14 +14,13 @@ class TimeScheduleService
         String _timeScheduleEndFlash;
         FlashService _flashService;
         MathService _mathService;
-        HttpService *_httpService;
 
-        DateTimeModel CalculateTimeInBetweenSchedule(TimeScheduleModel timeSchedule);
 
     public:
         bool CurrentTimeSchedule;
 
-        TimeScheduleService(String timeScheduleStartFlash, String timeScheduleEndFlash, String HttpService* httpService);
+        TimeScheduleService();
+        unsigned long CalculateTimeUntil(DateTimeModel dateTimeFrom, DateTimeModel dateTimeTo);
         bool ValidateTimer(TimeScheduleModel timeSchedule);
         String GetCurrentTimeSchedule();
         void SetTimeSchedule(TimeScheduleModel timeSchedule);

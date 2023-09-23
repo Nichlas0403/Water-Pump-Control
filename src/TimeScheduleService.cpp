@@ -1,12 +1,8 @@
 #include "TimeScheduleService.h"
 
 
-TimeScheduleService::TimeScheduleService(String timeScheduleStartFlash, String timeScheduleEndFlash, HttpService* httpService) : _flashService(), _mathService()
+TimeScheduleService::TimeScheduleService() : _flashService(), _mathService()
 {
-    _httpService = httpService;
-    _timeScheduleStartFlash = timeScheduleStartFlash;
-    _timeScheduleEndFlash = timeScheduleEndFlash;
-
 }
 
 String TimeScheduleService::GetCurrentTimeSchedule()
@@ -24,12 +20,10 @@ String TimeScheduleService::GetCurrentTimeSchedule()
 void TimeScheduleService::SetTimeSchedule(TimeScheduleModel timeSchedule)
 {
     
-    DateTimeModel timeInBetweenSchedule = CalculateTimeInBetweenSchedule(timeSchedule);
-    unsigned int hoursAsMillis = _mathService.ConvertHoursToMillis(timeInBetweenSchedule.Hours);
-    unsigned int minutesAsMillis = _mathService.ConvertMinutesToMillis(timeInBetweenSchedule.Minutes);
-    unsigned long timeInBetweenMillis = hoursAsMillis + minutesAsMillis;
-
-    DateTimeModel currentTime = _httpService->GetDateTime();
+    // DateTimeModel timeInBetweenSchedule = CalculateTimeInBetweenSchedule(timeSchedule);
+    // unsigned int hoursAsMillis = _mathService.ConvertHoursToMillis(timeInBetweenSchedule.Hours);
+    // unsigned int minutesAsMillis = _mathService.ConvertMinutesToMillis(timeInBetweenSchedule.Minutes);
+    // unsigned long timeInBetweenMillis = hoursAsMillis + minutesAsMillis;
 
     //Hvis den ikke skal start nu
         //Hvornår skal den så starte --> flash
@@ -40,41 +34,41 @@ void TimeScheduleService::SetTimeSchedule(TimeScheduleModel timeSchedule)
         //udregn hvornår den skal starte igen og hvornår den skal stoppe igen
 
     // Check if it's time to turn on the pump
-    if (currentTime.Hours > timeSchedule.StartTime.Hours ||
-        (currentTime.Hours == timeSchedule.StartTime.Hours && currentTime.Minutes >= timeSchedule.StartTime.Minutes)) 
-    {
-        unsigned long pumpEndTimeMillis = millis() + timeInBetweenMillis;
-        //start pump
-        //calculate millis it should end (millis() += timeInBetweenMillis)
-    } 
-    else 
-    {
-        _gpioService->TurnRelayOff();
-        // Pump should be OFF
-        // Code to turn off the pump here
-    }
+    // if (currentTime.Hours > timeSchedule.StartTime.Hours ||
+    //     (currentTime.Hours == timeSchedule.StartTime.Hours && currentTime.Minutes >= timeSchedule.StartTime.Minutes)) 
+    // {
+    //     unsigned long pumpEndTimeMillis = millis() + timeInBetweenMillis;
+    //     //start pump
+    //     //calculate millis it should end (millis() += timeInBetweenMillis)
+    // } 
+    // else 
+    // {
+    //     _gpioService->TurnRelayOff();
+    //     // Pump should be OFF
+    //     // Code to turn off the pump here
+    // }
 
     //get datetime
     //if timeSchedule.Start.H
 }
 
-DateTimeModel TimeScheduleService::CalculateTimeInBetweenSchedule(TimeScheduleModel timeSchedule)
+unsigned long TimeScheduleService::CalculateTimeUntil(DateTimeModel currentDateTime, DateTimeModel dateTimeTo)
 {
     int hoursOn;
     int minutesOn;
 
-    if (timeSchedule.StartTime.Hours > timeSchedule.EndTime.Hours || 
-        (timeSchedule.StartTime.Hours == timeSchedule.EndTime.Hours && timeSchedule.StartTime.Minutes > timeSchedule.EndTime.Minutes)) 
+    if (currentDateTime.Hours > dateTimeTo.Hours || 
+        (currentDateTime.Hours == dateTimeTo.Hours && currentDateTime.Minutes > dateTimeTo.Minutes)) 
     {
         // Case when the end-time is earlier in the day or the same hour but earlier minutes
-        hoursOn = 24 - timeSchedule.StartTime.Hours + timeSchedule.EndTime.Hours;
-        minutesOn = timeSchedule.EndTime.Minutes - timeSchedule.StartTime.Minutes;
+        hoursOn = 24 - currentDateTime.Hours + dateTimeTo.Hours;
+        minutesOn = dateTimeTo.Minutes - currentDateTime.Minutes;
     } 
     else 
     {
         // Case when the end time is later in the day
-        hoursOn = timeSchedule.EndTime.Hours - timeSchedule.StartTime.Hours;
-        minutesOn = timeSchedule.EndTime.Minutes - timeSchedule.StartTime.Minutes;
+        hoursOn = dateTimeTo.Hours - currentDateTime.Hours;
+        minutesOn = dateTimeTo.Minutes - currentDateTime.Minutes;
     }
 
     // Ensure minutes are positive
@@ -88,7 +82,12 @@ DateTimeModel TimeScheduleService::CalculateTimeInBetweenSchedule(TimeScheduleMo
     dateTime.Minutes = minutesOn;
     dateTime.Hours = hoursOn;
 
-    return dateTime;
+    unsigned int hoursAsMillis = _mathService.ConvertHoursToMillis(dateTime.Hours);
+    unsigned int minutesAsMillis = _mathService.ConvertMinutesToMillis(dateTime.Minutes);
+    unsigned long timeInBetweenMillis = hoursAsMillis + minutesAsMillis;
+    timeInBetweenMillis += millis();
+
+    return timeInBetweenMillis;
 }
 
 
