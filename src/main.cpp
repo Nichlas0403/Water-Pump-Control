@@ -19,8 +19,10 @@ String _wifiName = "";
 String _wifiPassword = "";
 unsigned long _timer;
 bool _timerOn;
-unsigned long _timeScheduleStart;
-unsigned long _timeScheduleEnd;
+int _hourTimeScheduleStart;
+int _hourTimeScheduleEnd;
+unsigned long _timeScheduleStartMillis;
+unsigned long _timeScheduleEndMillis;
 bool _timeScheduleOn;
 TimeScheduleModel _timeSchedule;
 
@@ -30,7 +32,8 @@ String _wifiPasswordFlash = "wifiPassword";
 String _cscsBaseUrlFlash = "cscsBaseUrl";
 String _getDateTimeRouteFlash = "getDateTimeUrl";
 String _sendTextRouteFlash = "sendTextRoute";
-String _timeScheduleFlash = "timeSchedule";
+String _timeScheduleStartHourFlash = "timeScheduleStartHour";
+String _timeScheduleEndHourFlash = "timeScheduleEndHour";
 
 //Services
 ESP8266WebServer _server(80);
@@ -52,18 +55,22 @@ void setup()
   Serial.begin(9600);
   _gpioService.TurnRelayOff();
 
-  String timeSchedule = _flashService.ReadFromFlash(_timeScheduleFlash);
-
-  if(timeSchedule != "")
-  {
-    GetTimeScheduleFromFlash();
-    _timeScheduleOn = true;
-  }
-
   _wifiName = _flashService.ReadFromFlash(_wifiNameFlash);
   _wifiPassword = _flashService.ReadFromFlash(_wifiPasswordFlash);
 
   connectToWiFi();
+
+  String timeScheduleStart = _flashService.ReadFromFlash(_timeScheduleStartHourFlash);
+  String timeScheduleEnd = _flashService.ReadFromFlash(_timeScheduleEndHourFlash);
+
+  Serial.println();
+
+  if(timeScheduleStart != "" && timeScheduleEnd != "")
+  {
+    GetTimeScheduleFromFlash();
+    UpdateTimeScheduleStartAndEnd();
+    _timeScheduleOn = true;
+  }
 }
 
 void loop() 
@@ -74,18 +81,18 @@ void loop()
   _server.handleClient();
   delay(1);
 
-  if(_timerOn && currentTime > _timer)
-  {
-    _gpioService.TurnRelayOff();
-    _timer = 0;
-    _timerOn = false;
-  }
+  // if(_timerOn && currentTime > _timer)
+  // {
+  //   _gpioService.TurnRelayOff();
+  //   _timer = 0;
+  //   _timerOn = false;
+  // }
 
-  if(_timeScheduleOn && !_gpioService.RelayState && currentTime >= _timeScheduleStart)
+  if(_timeScheduleOn && !_gpioService.RelayState && currentTime >= _timeScheduleStartMillis)
   {
     _gpioService.TurnRelayOn();
   }
-  else if(_timeScheduleOn && _gpioService.RelayState && currentTime >= _timeScheduleEnd)
+  else if(_timeScheduleOn && _gpioService.RelayState && currentTime >= _timeScheduleEndMillis)
   {
     _gpioService.TurnRelayOff();
 
@@ -93,24 +100,45 @@ void loop()
   }
 }
 
+  // _timeScheduleStart = hoursStart;
+  // _timeScheduleEnd = hoursEnd;
+
 void UpdateTimeScheduleStartAndEnd()
 {
-    DateTimeModel currentDateTime = _httpService.GetDateTime();
+  DateTimeModel currentDateTime = _httpService.GetDateTime();
 
-    _timeScheduleStart = _timeScheduleService.CalculateTimeUntil(_timeSchedule.StartTime, currentDateTime);
-    _timeScheduleEnd = _timeScheduleService.CalculateTimeUntil(_timeSchedule.EndTime, currentDateTime);
+  unsigned long millisValueWhenStart = _timeScheduleService.CalculateTimeUntil(currentDateTime.Hours, _hourTimeScheduleStart);
+  millisValueWhenStart += millis();
+
+  unsigned long minutesLeftInHourMillis = _mathService.ConvertMinutesToMillis(currentDateTime.Minutes);
+
+  if(currentDateTime.Hours != _hourTimeScheduleStart)
+  {
+    millisValueWhenStart -= minutesLeftInHourMillis;
+  }
+
+  unsigned long millisValueWhenEnd = millisValueWhenStart + _timeScheduleService.CalculateTimeUntil(_hourTimeScheduleStart, _hourTimeScheduleEnd);
+
+  if(currentDateTime.Hours == _hourTimeScheduleStart)
+  {
+    millisValueWhenEnd -= minutesLeftInHourMillis;
+  }
+  
+  
+  _timeScheduleStartMillis = millisValueWhenStart;
+  _timeScheduleEndMillis = millisValueWhenEnd;  
+
+  Serial.println("Current millis: " + String(millis()));
+  Serial.println("Hour start: " + String(_hourTimeScheduleStart));
+  Serial.println("Millis when start: " + String(_timeScheduleStartMillis));
+  Serial.println("Hour end: " + String(_hourTimeScheduleEnd));
+  Serial.println("Millis when end: " + String(_timeScheduleEndMillis));
 }
 
 void GetTimeScheduleFromFlash()
 {
-    DynamicJsonDocument timeScheduleJson(1024);
-  
-    deserializeJson(timeScheduleJson, _flashService.ReadFromFlash(_timeScheduleFlash));
-
-    _timeSchedule.StartTime.Hours = timeScheduleJson["hoursStart"];
-    _timeSchedule.StartTime.Minutes = timeScheduleJson["minutesStart"];
-    _timeSchedule.EndTime.Hours = timeScheduleJson["hoursEnd"];
-    _timeSchedule.EndTime.Minutes = timeScheduleJson["minutesEnd"];
+    _hourTimeScheduleStart = _flashService.ReadFromFlash(_timeScheduleStartHourFlash).toInt();
+    _hourTimeScheduleEnd = _flashService.ReadFromFlash(_timeScheduleEndHourFlash).toInt();
 }
 
 
@@ -241,29 +269,27 @@ void UpdateTimeSchedule()
   
   deserializeJson(request, _server.arg("plain"));
 
-  TimeScheduleModel timeSchedule;
+  int hoursStart = request["hoursStart"];
+  int hoursEnd = request["hoursEnd"];
 
-  timeSchedule.StartTime.Hours = request["hoursStart"];
-  timeSchedule.StartTime.Minutes = request["minutesStart"];
-  timeSchedule.EndTime.Hours = request["hoursEnd"];
-  timeSchedule.EndTime.Minutes = request["minutesEnd"];
-
-  bool timerScheduleIsValid = _timeScheduleService.ValidateTimer(timeSchedule);
+  bool timerScheduleIsValid = _timeScheduleService.ValidateTimer(hoursStart, hoursEnd);
 
   if(!timerScheduleIsValid)
   {
-    _server.send(400, "text/json", "Invalid time - Hours must be between 0 and 23, minutes must be between 0 and 59, and start and end time can not have the same value.");
+    _server.send(400, "text/json", "Invalid time - Values must be between 0 and 23 and can not be equal.");
     return;
   }
 
-  _flashService.WriteToFlash(_timeScheduleFlash, _server.arg("plain"));
-  _timeSchedule = timeSchedule;
+  _hourTimeScheduleStart = hoursStart;
+  _hourTimeScheduleEnd = hoursEnd;
+  _gpioService.TurnRelayOff();
+
+  UpdateTimeScheduleStartAndEnd();
+
+  _flashService.WriteToFlash(_timeScheduleStartHourFlash, String(hoursStart));
+  _flashService.WriteToFlash(_timeScheduleEndHourFlash, String(hoursEnd));
   _timeScheduleOn = true;
 
-  DateTimeModel currentDateTime = _httpService.GetDateTime();
-
-  _timeScheduleStart = _timeScheduleService.CalculateTimeUntil(currentDateTime, timeSchedule.StartTime);
-  _timeScheduleEnd = _timeScheduleService.CalculateTimeUntil(currentDateTime, timeSchedule.EndTime);
   
 
   // if(_timerOn)

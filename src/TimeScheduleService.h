@@ -20,11 +20,8 @@ class TimeScheduleService
         bool CurrentTimeSchedule;
 
         TimeScheduleService();
-        unsigned long CalculateTimeUntil(DateTimeModel dateTimeFrom, DateTimeModel dateTimeTo);
-        bool ValidateTimer(TimeScheduleModel timeSchedule);
-        String GetCurrentTimeSchedule();
-        void SetTimeSchedule(TimeScheduleModel timeSchedule);
-
+        unsigned long CalculateTimeUntil(int hourFrom, int hourTo);
+        bool ValidateTimer(int hoursStart, int hoursEnd);
 };
 
 #endif
