@@ -81,27 +81,36 @@ void loop()
   _server.handleClient();
   delay(1);
 
-  // if(_timerOn && currentTime > _timer)
-  // {
-  //   _gpioService.TurnRelayOff();
-  //   _timer = 0;
-  //   _timerOn = false;
-  // }
+  if(_timerOn && currentTime > _timer)
+  {
+
+    if(!_timeScheduleOn ||
+      (_timeScheduleOn && currentTime <= _timeScheduleStartMillis))
+    {
+      _gpioService.TurnRelayOff();
+    }
+
+    _timer = 0;
+    _timerOn = false;
+
+  }
 
   if(_timeScheduleOn && !_gpioService.RelayState && currentTime >= _timeScheduleStartMillis)
   {
     _gpioService.TurnRelayOn();
   }
-  else if(_timeScheduleOn && _gpioService.RelayState && currentTime >= _timeScheduleEndMillis)
+  else if(_timeScheduleOn && currentTime >= _timeScheduleEndMillis)
   {
-    _gpioService.TurnRelayOff();
+    if(!_timerOn && _gpioService.RelayState)
+    {
+      _gpioService.TurnRelayOff();
+    }
 
     UpdateTimeScheduleStartAndEnd();
+
   }
 }
 
-  // _timeScheduleStart = hoursStart;
-  // _timeScheduleEnd = hoursEnd;
 
 void UpdateTimeScheduleStartAndEnd()
 {
@@ -124,15 +133,8 @@ void UpdateTimeScheduleStartAndEnd()
     millisValueWhenEnd -= minutesLeftInHourMillis;
   }
   
-  
   _timeScheduleStartMillis = millisValueWhenStart;
   _timeScheduleEndMillis = millisValueWhenEnd;  
-
-  Serial.println("Current millis: " + String(millis()));
-  Serial.println("Hour start: " + String(_hourTimeScheduleStart));
-  Serial.println("Millis when start: " + String(_timeScheduleStartMillis));
-  Serial.println("Hour end: " + String(_hourTimeScheduleEnd));
-  Serial.println("Millis when end: " + String(_timeScheduleEndMillis));
 }
 
 void GetTimeScheduleFromFlash()
@@ -187,6 +189,33 @@ void GetState()
 void GetTimeSchedule()
 {
 
+  if(_hourTimeScheduleStart == 0 && _hourTimeScheduleEnd == 0)
+  {
+    _server.send(200, "text/json", "No Time Schedule has been set.");
+  }
+
+  String hourStart;
+  String hourEnd;
+
+  if(_hourTimeScheduleStart < 10)
+  {
+    hourStart = "0" + String(_hourTimeScheduleStart);
+  }
+  else
+  {
+    hourStart = String(_hourTimeScheduleStart);
+  }
+
+  if(_hourTimeScheduleEnd < 10)
+  {
+    hourEnd = "0" + String(_hourTimeScheduleEnd);
+  }
+  else
+  {
+    hourEnd = String(_hourTimeScheduleEnd);
+  }
+
+  _server.send(200, "text/json", hourStart + "-" + hourEnd);
 
 }
 
@@ -232,6 +261,7 @@ void TurnWaterPumpOff()
 
   if(_timerOn)
   {
+    _timer = 0;
     _timerOn = false;
   }
 
@@ -263,6 +293,22 @@ void SetTimer()
   _server.send(200);
 }
 
+void StopTimer()
+{
+  unsigned long int currentTime = millis(); 
+
+  if(!_timeScheduleOn ||
+     (_timeScheduleOn && currentTime <= _timeScheduleStartMillis))
+  {
+    _gpioService.TurnRelayOff();
+  }
+     
+  _timer = 0;
+  _timerOn = false;
+
+  _server.send(200);
+}
+
 void UpdateTimeSchedule()
 {
   DynamicJsonDocument request(1024);
@@ -282,7 +328,11 @@ void UpdateTimeSchedule()
 
   _hourTimeScheduleStart = hoursStart;
   _hourTimeScheduleEnd = hoursEnd;
-  _gpioService.TurnRelayOff();
+
+  if(!_timerOn)
+  {
+    _gpioService.TurnRelayOff();
+  }
 
   UpdateTimeScheduleStartAndEnd();
 
@@ -290,19 +340,29 @@ void UpdateTimeSchedule()
   _flashService.WriteToFlash(_timeScheduleEndHourFlash, String(hoursEnd));
   _timeScheduleOn = true;
 
-  
-
-  // if(_timerOn)
-  // {
-  //   _timerOn = false;
-  //   _gpioService.TurnRelayOff();
-  // }
-  
   _server.send(200);
 
 }
 
-// Core server functionality
+void StopTimeSchedule()
+{
+  _flashService.DeleteFromFlash(_timeScheduleStartHourFlash);
+  _flashService.DeleteFromFlash(_timeScheduleEndHourFlash);
+
+  _hourTimeScheduleStart = 0;
+  _hourTimeScheduleEnd = 0;
+  _timeScheduleOn = false;
+
+  if(!_timerOn)
+  {
+    _gpioService.TurnRelayOff();
+  }
+
+  _server.send(200);
+
+}
+
+// Endpoints
 void restServerRouting() 
 {
   _server.on(F("/health-check"), HTTP_GET, HealthCheck);
@@ -313,10 +373,14 @@ void restServerRouting()
 
   _server.on(F("/timer"), HTTP_PUT, SetTimer);
   _server.on(F("/timer"), HTTP_GET, GetTimeRemaining);
+  _server.on(F("/timer"), HTTP_DELETE, StopTimer);
 
   _server.on(F("/time-schedule"), HTTP_GET, GetTimeSchedule);
   _server.on(F("/time-schedule"), HTTP_PUT, UpdateTimeSchedule);
+  _server.on(F("/time-schedule"), HTTP_DELETE, StopTimeSchedule);
 }
+
+// Core server functionality
 
 void handleNotFound() 
 {
